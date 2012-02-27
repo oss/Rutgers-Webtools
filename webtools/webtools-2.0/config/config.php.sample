@@ -1,0 +1,70 @@
+<?php
+
+/* Base install of webtools (NO trailing slash) */
+$WBT = '/usr/local/lib64/webtools';
+
+/* As the name implies (currently used as dn for LDAP) */
+$CLUSTER = 'rci';
+
+/* If package put down was called webtools_foobar then example would be: */
+//$WEBTOOL[] = 'foobar';
+//$WEBTOOL[] = 'quota';
+
+// Content delivery network (i.e., base url for grabbing css style sheets/images/etc...)
+$CDN = 'https://www.rci.rutgers.edu/css';
+
+// Contact mailto link in footer
+$CONTACT = 'help@rci.rutgers.edu';
+
+/* Setup facility for scripts and/or webtool
+// man logger OR http://linux.die.net/man/1/logger for list of values
+$SCRIPT_LOG_FACILITY = 'user';
+
+// http://www.indelible.org/php/Log/guide.html#facilities for list of values
+// NOTE: The value is a CONSTANT!
+$WEB_LOG_FACILITY = LOG_USER;
+
+/* NOTE: The following options ONLY needed when using right_boxes() function */
+// RSS timeout (in seconds); the real timeout experienced by the user is more like 3x
+$RSS_TIMEOUT = 2;
+
+// RSS news max number of items shown
+$RSS_NEWS_ITEM_MAX = 5;
+
+// RSS news feed URL
+$RSS_NEWS_URL = 'http://css.rutgers.edu/news/feed';
+/* END NOTE */
+
+/****************************************************
+ * MOVE ALONG... NO NEED TO EDIT BEYOND THIS POINT...
+ ***************************************************/
+
+/* Retrieve the NetID (user who authenticated) */
+$USER = NULL;
+if (isset($_SERVER['REMOTE_USER']))
+    $USER = strtolower($_SERVER['REMOTE_USER']);
+
+/* Where runas is located */
+$RUNAS_CMD = $WBT . '/bin/runas';
+
+/* Programs runas is allowed to execute (they must be in webbin dir) */
+$MF = 'makefile';
+$AF = 'appendfile';
+$STF = 'statfile';
+$FIND = 'find';
+$QUOTA = 'quota';
+$TOUCH = 'touch';
+$USERINFO = 'userinfo';
+
+/* Include files here... */
+require_once($WBT . '/templates/rutgers.php');
+require_once($WBT . '/html/functions.php');
+
+/* Figure out what webtool config to include */
+$WEBTOOL_DIRNAME = dirname($_SERVER['PHP_SELF']);
+$WEBTOOL_DIRNAME_PARENT = dirname($WEBTOOL_DIRNAME);
+$WEBTOOL_NAME = substr($WEBTOOL_DIRNAME, (strlen($WEBTOOL_DIRNAME_PARENT) + 1));
+if (is_array($WEBTOOL) && in_array($WEBTOOL_NAME, $WEBTOOL))
+    require_once($WBT . '/config/' . $WEBTOOL_NAME . '_config.php');
+
+?>

@@ -1,0 +1,3 @@
+Remove duplicate data (eg, md5sum each hit and leave the newest)
+Dynamically compare restore data size w/ quota available
+Point user to subscribe folder documentation(?) when using restoremail

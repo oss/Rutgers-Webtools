@@ -1,0 +1,16 @@
+<?php
+
+global $MM_DEACTIVATED_LISTS_DIR, $MM_LISTS_DIR, $MM_SUPPORT_EMAIL_ADDRESS;
+
+// Location of deactivated lists (newlists can't take name for 8 weeks)
+// Note: NO trailing slash...
+$MM_DEACTIVATED_LISTS_DIR = '/some/directory/deletedlists';
+
+// Location of Mailman lists directory
+// Note: NO trailing slash...
+$MM_LISTS_DIR = '/var/lib/mailman/lists';
+
+// Mailman Tier 2 support email address
+$MM_SUPPORT_EMAIL_ADDRESS = 'mmadm@nbcs.rutgers.edu';
+
+?>

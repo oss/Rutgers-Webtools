@@ -1,0 +1,3 @@
+These are tools used at Rutgers University to safely and securely run system commands from PHP scripts. 
+They are used for things like update mail settings, checking quota, etc
+

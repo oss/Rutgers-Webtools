@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# full path to binaries used in this script
+BASENAME=/bin/basename
+CP=/bin/cp
+CUT=/bin/cut
+ECHO=/bin/echo
+GETENT=/usr/bin/getent
+ID=/usr/bin/id
+RM=/bin/rm
+
+# declare variables
+PATH=''
+PGM=`$BASENAME $0`
+
+# check existence of binaries
+for i in $BASENAME $CP $CUT $ECHO $GETENT $ID $RM
+do
+        [ ! -f $i ] && echo "ERROR: $PGM failed (missing cmd)" && echo "cmd: $i" && exit 2
+done
+
+# verify arg passed correctly and is valid
+[ $# -ne 4 ] && $ECHO "ERROR: $PGM failed (args invalid)" && exit 2
+
+# declare arg variables
+retiree_dir=$1
+invalid_retiree_dir=$2
+netid=$3
+content=$4
+
+gid=`$GETENT passwd $netid | $CUT -d: -f4`
+
+# is netid retiree, facstaff, guest, or other?
+if [ "$gid" -eq "21061" ]
+then
+    # write content (client IP) to valid retiree file
+    [ -d "$retiree_dir" ] && file="$retiree_dir/$netid" && $ECHO $content >> $file
+
+    $ECHO "OK: $PGM successfully logged"
+    exit 0
+elif [ "$gid" -eq "11013" ]
+then
+    # write content (client IP) to invalid retiree file
+    [ -d "$invalid_retiree_dir" ] && file="$invalid_retiree_dir/$netid" && $ECHO $content >> $file
+
+    $ECHO "FAIL: $netid is currently facstaff and not retiree"
+    exit 1
+elif [ "$gid" -eq "21060" ]
+then
+    $ECHO "FAIL: $netid is currently guest and not retiree"
+    exit 2
+else
+    $ECHO "FAIL: $netid is currently other and not retiree"
+    exit 3
+fi

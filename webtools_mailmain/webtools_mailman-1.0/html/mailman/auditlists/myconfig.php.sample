@@ -1,0 +1,31 @@
+<?php
+
+global $AUDIT_PERIOD, $ALLOWED_DOMAINS_ARR, $AUDIT_DIR, $LISTS_ARR;
+
+// Is this the annual audit OR semiannual audit?
+// 1 = true, 0 = false
+$ANNUAL_AUDIT = 1;
+
+// List of email domains allowed when searching for owners and members
+// of Mailman lists. We do this because there is no way to map a lists
+// email address to the correspondin Rutgers NetID.
+
+$ALLOWED_DOMAINS_ARR = array(
+    'rutgers.edu',
+    'rci.rutgers.edu',
+    'eden.rutgers.edu',
+    'pegasus.rutgers.edu',
+    'andromeda.rutgers.edu',
+    'clam.rutgers.edu',
+    'crab.rutgers.edu'
+);
+
+
+// Where should we be writing the audit results
+$AUDIT_DIR='/some/where/auditlists';
+
+// Which lists failed to comply in the last audit
+$LISTS_ARR = array('list_name1', 'list_name2');
+
+
+?>

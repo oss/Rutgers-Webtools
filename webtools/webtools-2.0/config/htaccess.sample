@@ -1,0 +1,7 @@
+SSLRequireSSL
+AuthName 'CSS Webtools'
+AuthType Basic
+AuthBasicProvider ldap
+AuthLDAPUrl ldap://ldap.nbcs.rutgers.edu/dc=rutgers,dc=edu?uid?sub TLS
+AuthzLDAPAuthoritative on
+Require valid-user

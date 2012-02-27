@@ -1,0 +1,7 @@
+[defaults]
+
+smbdir = /var/run/smbacctd/watch
+smblog = /var/log/smbacctd.log
+smbpid = /var/run/smbacctd.pid
+smbpasswd = /usr/bin/smbpasswd
+sendmail = /usr/sbin/sendmail

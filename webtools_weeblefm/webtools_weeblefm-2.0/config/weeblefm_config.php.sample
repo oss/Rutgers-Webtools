@@ -1,0 +1,59 @@
+<?php
+/* WEB RELATED CONFIG OPTIONS */
+
+global $DOCTYPE, $TITLE, $DESCRIPTION, $KEYWORDS, $HEADER, $JS, $REFRESH,
+        $DIV_ID_CONTENT_CLASS, $RSS_SERVICE_ITEM_MAX, $RSS_SERVICE_URL,
+        $LOGIN_BOX_HEADER, $LOGIN_BOX_SUB_HEADER, $LOGIN_BOX_FOOTER,
+        $LOGIN_BOX_ARRAY;
+
+// Define DOCTYPE (e.g., xhtml1-transitional, xhtml1-strict, xhtml11)
+$DOCTYPE = 'xhtml11';
+
+// Title for webpage
+$TITLE = 'Weeble File Manager';
+
+// Description to use for META tag
+$DESCRIPTION = 'Weeble File Manager';
+
+// Keywords to use for META tag
+$KEYWORDS = 'WeebleFM, Weeble File Manager, File Manager';
+
+// Header for webpage (Future todo: make this a navigational menu)
+$HEADER = "Welcome to $TITLE, provided by Central Systems and Services";
+
+// Javascript file to source
+$JS = 'my.js';
+
+// Ability to refresh/redirect if desired (note: content="$REFRESH")
+// http://en.wikipedia.org/wiki/Meta_refresh
+// $REFRESH = '15;URL=http://somewhere.rutgers.edu';
+$REFRESH = '';
+
+// Adds class name to <div id='content' class=''> in order to style; add name to style.css
+// Some predefined classes are 'wide' and 'wide-with-news'
+$DIV_ID_CONTENT_CLASS = "wide-with-news";
+
+/* NOTE: The following options ONLY needed when using right_boxes() function */
+// RSS service max number of items shown
+$RSS_SERVICE_ITEM_MAX = 3;
+
+// RSS service feed URL
+$RSS_SERVICE_URL = 'http://css.rutgers.edu/webmail/roundcube/changelog/feed';
+
+// Login box header
+$LOGIN_BOX_HEADER = 'Sign in to WeebleFM';
+
+// Login box sub header
+$LOGIN_BOX_SUB_HEADER = 'Powered by <a href="http://weeblefm.sourceforge.net/">Weeble File Manager</a>';
+
+// Login box footer
+$LOGIN_BOX_FOOTER = '';
+
+// Location of file where HTML form is defined
+$LOGIN_BOX_ARRAY['form'] = 'loginform.html';
+
+// Do you want an RSS feed for this service? either true|false
+$LOGIN_BOX_ARRAY['rss'] = false;
+/* END NOTE */
+
+?>

@@ -1,0 +1,22 @@
+#####################
+# Setup webtools_db #
+#####################
+
+$prefix = wherever webtools installed (e.g., /usr/local/lib64/webtools)
+
+For db do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp db_config.php.sample db_config.php
+   $ vi db_config.php
+
+1) Copy sample htaccess file to each webtool(s) directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample db/.htaccess
+   $ vi db/.htaccess
+
+2) Provide link to db helper script
+   $ ln -s /rci/local/mysql5/admin/bin/db $prefix/webbin/db
+
+3) Done.

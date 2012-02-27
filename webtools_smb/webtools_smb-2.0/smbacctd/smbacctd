@@ -1,0 +1,310 @@
+#!/usr/bin/env python
+#
+# Samba Account Management Daemon
+# Tom Pawlowski <tompru@jla.rutgers.edu>
+# Copyright 2011 Rutgers University
+#
+# Function: Monitors a given directory for zero-byte files being created in a
+# specific format in order to perform a given action on a username:
+#   1. Create a Samba account and/or generate a new password
+#   2. Enable a previously disabled account
+#   3. Disable a previously enabled account
+#
+# Non-standard dependencies:
+#   python-inotify
+#
+
+import os, re, sys, time, string
+import random
+import pyinotify
+import Queue
+import subprocess
+
+from os import path
+from pwd import getpwnam
+from threading import Thread
+from pyinotify import WatchManager, ThreadedNotifier
+
+# Generic utility module for common system tasks located
+# in /usr/local/smbacctd/util
+import util
+
+conf = util.config('/usr/local/smbacctd/smbacctd.conf')
+coreLogger = util.logger('smbacctd', conf['smblog'])
+
+# Exception classes
+class SambaInvalidFile(Exception): pass
+class SambaUserNotFound(Exception): pass
+
+# Mail Messages
+new_password_msg = """From: RCI Drive <nobody@rci.rutgers.edu>
+To: %(user)s
+Subject: %(wg)s Drive Information
+    
+Your %(wg)s Samba access has been created for your Rutgers
+account. The Samba password is %(pw)s
+    
+If this Samba access was created for a departmental account, the
+person who reads email messages for that account should take
+responsibility for secure distribution of the Samba password. To avoid
+confusion, prevent accidental overwriting of critical files and possible
+loss of important information, OIT strongly recommends closely
+coordinated and monitored use of shared files on departmental accounts.
+  
+If you have questions concerning Samba use, please contact your local
+Campus Computing Help Desk at 732-445-HELP (4357) or send email to
+helpdesk@nbcs.rutgers.edu.
+""" 
+
+enable_msg = """From: RCI Drive <nobody@rci.rutgers.edu>
+To: %(user)s
+Subject: %(wg)s Drive Information
+
+Your %(wg)s drive account has been enabled as requested.
+"""
+
+disable_msg = """From: RCI Drive <nobody@rci.rutgers.edu>
+To: %(user)s
+Subject: %(wg)s Drive Information
+
+Your %(wg)s drive account has been disabled as requested.
+"""
+
+
+def mail_user(msg):
+  sendargs = [conf['sendmail'], '-oi', '-t']
+
+  sendmail = subprocess.Popen(sendargs, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+  sendmail.stdin.write(msg)
+
+  # We use communicate() instead of wait() to avoid potential deadlock due to buffering.
+  stdout,stderr = sendmail.communicate()
+
+  if sendmail.returncode != 0:
+    coreLogger.error("'%s' returned non-zero code %i: %s" % (sendargs,sendmail.returncode,stderr))
+    raise OSError
+
+
+#
+# Parse the samba configuration and find what the workgroup name is. Force it
+# to uppercase and return it. This can also be used to verify that the file
+# exists and is readable prior to doing anything, as it will raise exceptions.
+#
+def get_samba_workgroup(conf='/etc/samba/smb.conf'):
+  workgroup = None
+
+  if not path.isfile(conf):
+    coreLogger.error("Configuration file either does not exist or is not a file: %s" % conf)
+    raise SystemExit
+
+  try:
+    smbconf = open(conf, 'r')
+
+    for line in smbconf:
+      m = re.search(r'^\s*workgroup\s*=\s*(\S+)', line)
+      if m:
+        workgroup = string.upper(m.group(1))
+        break
+
+    smbconf.close()
+
+  except IOError, e:
+    coreLogger.error("Caught IOError reading %s: %s" % (conf, str(e)))
+    raise SystemExit
+
+  except OSError, e:
+    coreLogger.error("Caught OSError reading %s: %s" % (conf, str(e)))
+    raise SystemExit
+
+  if not workgroup:
+    coreLogger.error("No workgroup defined in %s" % conf)
+    raise SystemExit
+
+  return workgroup
+
+
+def check_user(username):
+  try:
+    pwent = getpwnam(username)
+  except KeyError:
+    coreLogger.warn("User '%s' specified by control file does not exist. Skipping." % username)
+    raise SambaUserNotFound(username)
+
+  return pwent
+
+
+#
+# A class that will receive any creation events from inotify and pass the full
+# path to the created file to the management queue for the worker threads to
+# then act upon.
+#
+class EventHandler(pyinotify.ProcessEvent):
+  def my_init(self, queue):
+    self.queue = queue
+    self.log = util.getlog('smbacctd.EventHandler')
+
+  def process_IN_CREATE(self, event):
+    self.log.info("Adding '%s' to the management queue" % event.pathname)
+    self.queue.put(event.pathname)
+
+#
+# Worker thread that does the following:
+#  1. Verify the path passed is a file
+#  2. Verify the filename adheres to our format restrictions
+#  3. Split the filename on the dash, providing the user and action
+#  4. Pass the username to the appropriate action methods
+#  5. Delete the file if everything was successful.
+#
+class SambaThread(Thread):
+  def __init__(self, queue):
+    Thread.__init__(self)
+    self.queue = queue
+    self.log = util.getlog("smbacctd.%s" % self.getName())
+    self.setDaemon(True)
+
+  def run(self):
+    while 1:
+      pathname = self.queue.get()
+      self.log.info("Received %s from management queue" % pathname)
+
+      # We catch a lot of exceptions all the way up here, as we don't want a loose
+      # one causing the thread to terminate. All these instances, if they occur,
+      # have already been logged further down.
+      #
+      # Also note: we don't remove the control file if it happens to cause problems,
+      # as we want it there for debugging.
+      if path.isfile(pathname):
+        try:
+          self._parse_file(pathname)
+        except SambaUserNotFound:
+          continue
+        except SambaInvalidFile:
+          continue
+        except OSError:
+          continue
+      else:
+        self.log.warning("Control file is not a regular file. Leaving it alone for inspection: %s" % pathname)
+        continue
+
+      self.log.info("Unlinking %s" % pathname)
+
+      try:
+        os.unlink(pathname)
+      except OSError, e:
+        self.log.error("Failed to unlink %s: %s" % (pathname, str(e)))
+        continue
+
+  def _parse_file(self, pathname):
+    mfile = path.basename(pathname)
+
+    # The file must consist of: a lowercase alphanumeric word 1-63 characters in length, a dash, and any of the words: add, enable, or disable.
+    if re.search(r'^[a-z][a-z0-9]{1,63}\-(add|enable|disable)$', mfile):
+      username,action = string.split(mfile, '-')
+    else:
+      # Someone is doing something sneaky.
+      self.log.warn("Control file failed regular expression test, skipping: %s" % mfile)
+      raise SambaInvalidFile(mfile)
+
+    if action == 'add': self._add_user(username)
+    if action == 'enable': self._enable_user(username)
+    if action == 'disable': self._disable_user(username)
+
+
+  def _add_user(self, username):
+    pwent = check_user(username)
+    workgroup = get_samba_workgroup()
+
+    # Look in utils/security.py
+    new_password = util.generate_password()
+
+    smbargs = [conf['smbpasswd'], '-sa', username]
+
+    # Even if someone gets past the regex, no shell expansion tricks will work here.
+    smbpasswd = subprocess.Popen(smbargs,shell=False,
+      stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    smbpasswd.stdin.write("%s\n" % new_password)
+    smbpasswd.stdin.write("%s\n" % new_password)
+
+    # We use communicate() instead of wait() to avoid potential deadlock due to buffering.
+    stdout,stderr = smbpasswd.communicate()
+
+    if smbpasswd.returncode != 0:
+      self.log.error("'smbpasswd -sa %s' returned non-zero code %i: %s" % (username,smbpasswd.returncode,stderr))
+      raise OSError
+
+    self.log.info("Successfully changed samba password for %s" % username)
+
+    wgpath = "%s/%s_drive" % (pwent[5], workgroup)
+
+    if not path.exists(wgpath):
+      self.log.info("Creating %s" % wgpath)
+      try:
+        os.mkdir(wgpath, 0700)
+        os.chown(wgpath, pwent[2], pwent[3])
+      except OSError, e:
+        self.log.error("os.mkdir(%s) failed: %s" % (wgpath, str(e)))
+        pass
+
+    mail_user(new_password_msg % {
+      'wg':workgroup,
+      'pw':new_password,
+      'user':username})
+
+
+  def _modify_user(self, username, flag):
+    check_user(username)
+
+    smbargs = [conf['smbpasswd'], flag, username]
+    smbpasswd = subprocess.Popen(smbargs,shell=False,
+      stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    stdout,stderr = smbpasswd.communicate()
+
+    if smbpasswd.returncode != 0:
+      self.log.error("'smbpasswd %s %s' returned non-zero code %i: %s" % (flag, username, smbpasswd.returncode,stderr))
+      raise OSError
+
+
+  def _enable_user(self, username):
+    workgroup = get_samba_workgroup()
+    self._modify_user(username, '-e')
+    self.log.info("Successfully enabled user '%s'" % username)
+    mail_user(enable_msg % {'wg':workgroup, 'user':username})
+
+
+  def _disable_user(self, username):
+    workgroup = get_samba_workgroup()
+    self._modify_user(username, '-d')
+    self.log.info("Successfully disabled user '%s'" % username)
+    mail_user(disable_msg % {'wg':workgroup, 'user':username})
+
+
+def main(argc, argv):
+  coreLogger.info('Initializing smbacctd.main()')
+
+  # Write out our pid file
+  util.write_pid_file(conf['smbpid'])
+
+  # Watch for file creation
+  mask = pyinotify.IN_CREATE
+  mqueue = Queue.Queue()
+
+  # Just call this now in case there's a problem, we'll exit out early.
+  get_samba_workgroup()
+
+  for x in range(3):
+    SambaThread(mqueue).start()
+
+  wm = WatchManager()
+  ThreadedNotifier(wm, EventHandler(queue=mqueue)).start()
+  wm.add_watch(conf['smbdir'], mask, rec=True, auto_add=True)
+
+  while 1:
+    time.sleep(3600)
+
+
+if __name__ == '__main__':
+  # Perform a double fork and run in the background
+  util.daemonize()
+
+  # Continue on to the main def
+  sys.exit(main(len(sys.argv), sys.argv))

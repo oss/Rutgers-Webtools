@@ -1,0 +1,19 @@
+###########################
+# Setup webtools_fixperms #
+###########################
+
+$prefix = wherever webtools installed (e.g., /usr/local/lib64/webtools)
+
+For fixperms do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp fixperms_config.php.sample fixperms_config.php
+   $ vi fixperms_config.php
+
+1) Copy sample htaccess file to each webtool(s) directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample fixperms/.htaccess
+   $ vi fixperms/.htaccess
+
+2) Done.

@@ -1,0 +1,61 @@
+##########################
+# Setup webtools_mailman #
+##########################
+
+$prefix = wherever webtools installed (e.g., /usr/lib64/webtools)
+
+0) Setup links (if not already done at install time)
+   $ ln -s /usr/lib/mailman/bin/change_pw $prefix/webbin/change_pw
+   $ ln -s /usr/lib/mailman/bin/config_list $prefix/webbin/config_list
+   $ ln -s /usr/lib/mailman/bin/dumpdb $prefix/webbin/dumpdb
+   $ ln -s /usr/lib/mailman/bin/find_member $prefix/webbin/find_member
+   $ ln -s /usr/lib/mailman/bin/list_lists $prefix/webbin/list_lists
+   $ ln -s /usr/lib/mailman/bin/list_members $prefix/webbin/list_members
+   $ ln -s /usr/lib/mailman/bin/remove_members $prefix/webbin/remove_members
+
+1) Alter permissions (if not already done at install time)
+   $ chmod 555 /usr/lib/mailman/bin/change_pw
+   $ chmod 555 /usr/lib/mailman/bin/config_list
+   $ chmod 555 /usr/lib/mailman/bin/dumpdb
+   $ chmod 555 /usr/lib/mailman/bin/find_member
+   $ chmod 555 /usr/lib/mailman/bin/list_lists
+   $ chmod 555 /usr/lib/mailman/bin/list_members
+   $ chmod 555 /usr/lib/mailman/bin/remove_members
+
+2) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp mailman_config.php.sample mailman_config.php
+   $ vi mailman_config.php
+   $ cd $prefix/html/mailman/newlist
+   $ cp myconfig.php.sample myconfig.php
+   $ vi myconfig.php
+   $ cd $prefix/html/mailman/auditlists
+   $ cp myconfig.php.sample myconfig.php
+   $ vi myconfig.php
+
+3) Copy sample htaccess file to each Mailman webtool directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample mailman/*/.htaccess
+   $ vi mailman/*/.htaccess
+
+4) Configure your web server to include entries similar to the below.
+   Note: Replace $prefix with real absolute directory.
+
+   # HTTP
+   RedirectMatch ^/webtools$ https://hostname.rutgers.edu/mailman/webtools/
+   RedirectMatch ^/webtools/(.*) https://hostname.rutgers.edu/mailman/webtools/$1
+
+   # HTTPS
+   RedirectMatch ^/mailman/webtools$ https://host.rutgers.edu/mailman/webtools/
+
+   <Directory $prefix/html/mailman>
+     Options -Indexes
+     AllowOverride All
+     Order Allow,Deny
+     Allow from all
+     php_admin_value safe_mode_exec_dir $prefix/bin
+   </Directory>
+
+   Alias /mailman/webtools $prefix/html/mailman
+
+5) Done.

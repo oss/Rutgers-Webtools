@@ -1,0 +1,32 @@
+#!/bin/bash
+
+[ $# -ne 2 ] && exit 40
+
+[ "$1" == '' ] && exit 41
+
+[ "$2" == '' ] && exit 42
+
+USER=`/usr/xpg4/bin/id -un`
+[ "$USER" == '' ] && exit 43
+
+LOGFILE=/tmp/`basename $0`.$USER.$$.log
+OLDFNAME=$1
+NEWFNAME=$2
+MV=/usr/bin/mv
+
+HOME=`getent passwd $USER | cut -d: -f6`
+if [ "$HOME" == '' ]
+then
+    echo "getent \'$USER\' failed" >> $LOGFILE
+    exit 44
+fi
+
+$MV $HOME/$OLDFNAME $HOME/$NEWFNAME
+
+if [ "$?" -ne 0 ]
+then
+  echo "$MV $HOME/$OLDFNAME $HOME/$NEWFNAME failed" >> $LOGFILE
+  exit 45
+fi
+
+exit 0

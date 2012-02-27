@@ -1,0 +1,31 @@
+Version 2.0
+20111118
+
+Updated all files containing /usr/lib64 to /usr/local/lib64
+
+Version 2.0
+20110526
+
+Log summary of total MB's from restore.php
+Removed ruquota arg (-u $netid) from restore script
+Reworked logging:
+ Added web (PEAR Log) logging (see Log summary... above)
+ Seperate and globally defined script log facility from web log facility
+Added per-webtool global REFRESH to restore*_config.sample
+Fixed bug: Redirect all find(s) STDERR to /dev/null in restore script
+
+Version 2.0
+20110516
+
+Add Todo and Changelog files
+Add RSS news feed to restore.php
+Bold directory/folder listings
+Change logger output of #MB to # MB in restore script
+Fixed bug: Spaces in (sub)folders is mishandled
+Fixed bug: Remove maildirmake folder if restoremail cp failed
+Fixed bug: Reworked searching for "inbox" in restoremail
+
+Version 2.0
+20110512
+
+Initial codebase

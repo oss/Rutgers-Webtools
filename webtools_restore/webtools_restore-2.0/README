@@ -1,0 +1,33 @@
+##########################
+# Setup webtools_restore #
+##########################
+
+$prefix = wherever webtools installed (e.g., /usr/local/lib64/webtools)
+
+For restore do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp restore_config.php.sample restore_config.php
+   $ vi restore_config.php
+
+1) Copy sample htaccess file to each webtool(s) directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample restore/.htaccess
+   $ vi restore/.htaccess
+
+2) Done.
+
+
+For restoremail do the following steps:
+
+0) Setup links (if not already done at install time)
+   $ ln -s $prefix/webbin/restore  $prefix/webbin/restoremail
+   $ ln -s $prefix/html/restore $prefix/html/restoremail
+
+1) Copy sample configuration file(s).
+   $ cd $prefix/config
+   $ cp restoremail_config.php.sample restoremail_config.php
+   $ vi restoremail_config.php
+
+2) Done.

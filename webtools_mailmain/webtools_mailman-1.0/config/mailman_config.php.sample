@@ -1,0 +1,25 @@
+<?php
+/* Global functions file required by all Mailman webtools */
+require_once '/usr/lib64/webtools/html/mailman/functions.php';
+
+/* Who should runas... runas (by default)? */
+$RUNAS_USER = 'mailman';
+
+/* Mailman programs runas is allowed to execute */
+$NEWLIST = 'newlist';
+$CONFIG_LIST = 'config_list';
+$FIND_MEMBER = 'find_member';
+$CHANGE_PW = 'change_pw';
+$LIST_MEMBERS = 'list_members';
+$LIST_LISTS = 'list_lists';
+$DUMPDB = 'dumpdb';
+$REMOVE_MEMBERS = 'remove_members';
+
+/* Mailman directory locations (NO trailing slash...) */
+// Location of deactivated lists (newlists can't take name for 8 weeks)
+$MM_DEACTIVATED_LISTS_DIR = '/where/the/deletedlists/are';
+
+// Location of Mailman lists directory
+$MM_LISTS_DIR = '/var/lib/mailman/lists';
+
+?>

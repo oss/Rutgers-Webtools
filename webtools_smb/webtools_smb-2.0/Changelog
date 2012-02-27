@@ -1,0 +1,21 @@
+Version 2.0
+20111118
+
+Updated all files containing /usr/lib64 to /usr/local/lib64
+
+Version 2.0
+20111004
+
+Fixed bug: regex for NetID part of filename in smbacctd was not alphanum
+
+Version 2.0
+20110919
+
+Updated init script to sleep 1 in restart option
+Updated smbacctd to output stderr to log file
+Remove unused submitForm functions from my.js
+
+Version 2.0
+20110916
+
+Initial codebase

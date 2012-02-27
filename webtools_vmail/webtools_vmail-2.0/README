@@ -1,0 +1,19 @@
+########################
+# Setup webtools_vmail #
+########################
+
+$prefix = wherever webtools installed (e.g., /usr/local/lib64/webtools)
+
+For vmail do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp vmail_config.php.sample vmail_config.php
+   $ vi vmail_config.php
+
+1) Copy sample htaccess file to each webtool(s) directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample vmail/.htaccess
+   $ vi vmail/.htaccess
+
+2) Done.

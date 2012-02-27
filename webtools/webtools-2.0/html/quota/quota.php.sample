@@ -1,0 +1,30 @@
+<?php
+require_once('/usr/local/lib64/webtools/config/config.php');
+head();
+right_boxes('news');
+content();
+?>
+
+<?php
+$user_cmd = "$QUOTA -v";
+$target_cmd = "$RUNAS_CMD $USER $user_cmd";
+unset($result);
+exec($target_cmd, $result, $status);
+if ($status != 0) {
+    print "Failed to show other quota view for user $USER";
+} else {
+
+    $output = NULL;
+    foreach($result as $index => $value) {
+        if($index != 0)
+            $output .= $value . '<br />';
+    }
+
+    echo "<h4>Below is the output of the 'quota -v' shell command. It shows your raw file and disk space usage on this system.</h4>";
+    echo "<pre>$output</pre>";
+}
+?>
+
+<?php
+foot();
+?>

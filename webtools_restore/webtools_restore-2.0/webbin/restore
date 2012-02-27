@@ -1,0 +1,393 @@
+#!/bin/bash
+
+# clear $PATH
+PATH=''
+
+# get program name
+[ -f "/usr/bin/basename" ] && BASENAME=/usr/bin/basename
+[ -f "/bin/basename" ] && BASENAME=/bin/basename
+pgm=`$BASENAME "$0"`
+
+# determine OS type
+[ -f "/bin/uname" ] && UNAME=/bin/uname
+[ -f "/sbin/uname" ] && UNAME=/sbin/uname
+os=`$UNAME -s`
+
+# init cmds used in this script with UNcommon paths b/c of OS type
+case $os in
+    SunOS)
+        DU=/usr/local/gnu/bin/du
+        FIND=/usr/local/gnu/bin/find
+        ID=/usr/xpg4/bin/id
+	LOGGER=/usr/bin/logger
+        LS=/usr/local/gnu/bin/ls
+        MAILDIRMAKE=/usr/local/bin/maildirmake
+        QUOTA=/usr/sbin/quota
+        SORT=/usr/local/gnu/bin/sort
+        STAT=/usr/local/gnu/bin/stat
+        TAIL=/usr/local/gnu/bin/tail
+        TAR=/usr/sfw/bin/tar
+        ;;
+    Linux)
+        DU=/usr/bin/du
+        FIND=/usr/bin/find
+        ID=/usr/bin/id
+	LOGGER=/bin/logger
+        LS=/bin/ls
+        MAILDIRMAKE=/usr/bin/maildirmake
+        QUOTA=/usr/bin/quota
+        SORT=/bin/sort
+        STAT=/usr/bin/stat
+        TAIL=/usr/bin/tail
+        TAR=/bin/tar
+        ;;
+esac
+
+# init cmds used in this script with common paths between OS type
+AWK=/bin/awk
+CAT=/bin/cat
+CP=/bin/cp
+CUT=/bin/cut
+DF=/bin/df
+DIRNAME=/usr/bin/dirname
+ECHO=/bin/echo
+EXPR=/usr/bin/expr
+GETENT=/usr/bin/getent
+GREP=/bin/grep
+MKDIR=/bin/mkdir
+RM=/bin/rm
+RUQUOTA=/usr/local/bin/ruquota
+SED=/bin/sed
+UNIQ=/usr/bin/uniq
+
+# check existence of binaries (thanks NASOM)
+for i in $AWK $CAT $CP $CUT $DF $DIRNAME $DU $ECHO $EXPR $FIND $GETENT $GREP $ID $LOGGER $LS $MAILDIRMAKE $MKDIR $QUOTA $RM $RUQUOTA $SED $SORT $STAT $TAIL $TAR $UNIQ
+do
+        [ ! -f "$i" ] && $ECHO "ERROR: $pgm failed (missing cmd)" && echo "cmd: $i" && exit 1
+done
+
+# usage stanza
+Usage()
+{
+$CAT << EOF
+Usage: $pgm [-a] [-l] [-f facility] [-s keyword] -p path
+
+option:
+   -h           Show this message
+   -a           All Dates that data is restorable from
+   -l           List restorable data
+   -f facility  Log with this facility value (default is 'user')
+   -s keyword   Search restorable data using keyword
+   -p path      Path to use: with (l,s) option OR restore from if option omitted
+EOF
+}
+
+# do getopts and set needed flags
+showalldates=0
+listfiles=0
+facility=user
+showsearch=0
+exitquick=0
+keyword=
+path=
+while getopts ":half:s:p:" opt
+do
+    case $opt in
+        a) showalldates=1
+           exitquick=1
+           ;;
+        l) listfiles=1
+           exitquick=1
+           ;;
+        f) facility=$OPTARG
+           ;;
+        s) showsearch=1
+           exitquick=1
+           keyword=$OPTARG
+           ;;
+        p) path=$OPTARG
+           ;;
+        h) Usage
+           exit 0
+           ;;
+        \?) $ECHO "Invalid option: -$OPTARG" >&2
+           Usage
+           exit 1
+           ;;
+        :) $ECHO "Option -$OPTARG requires an argument" >&2
+           Usage
+           exit 1
+           ;;
+    esac
+done
+
+# verify path arg passed correctly and is valid
+[ -z "$path" ] && Usage && exit 1
+
+# function to log error and exit (thanks again NASOM ;)
+SE ()
+{
+    MSG="HELP ME HELP ME"
+    case "$1" in
+        1) MSG='netid not found'
+           ;;
+        2) MSG='listfiles find failed'
+           ;;
+        3) MSG='showsearch find failed'
+           ;;
+        4) MSG='home not found'
+           ;;
+        5) MSG='RESTORE is file'
+           ;;
+        6) MSG='ruquota lookup failed'
+           ;;
+        7) MSG='usage column unknown'
+           ;;
+        8) MSG='limit column unknown'
+           ;;
+        9) MSG='already overquota'
+           ;;
+        10) MSG='computing usage failed'
+           ;;
+        11) MSG='will be overquota'
+           ;;
+        12) MSG="maildirmake $restore_folder failed"
+           ;;
+        13) MSG='mkdir RESTORE failed'
+           ;;
+        14) MSG='copy failed'
+           ;;
+        15) MSG='tar create failed'
+           ;;
+        16) MSG='tar extract failed'
+           ;;
+        *) MSG='UNKNOWN ERROR'
+           ;;
+    esac
+
+    # log the failure (status=1 unless a 2nd arg is passed)
+    if [ -z "$2" ] 
+    then
+        $LOGGER -i -p $facility.err "FAILURE:$pgm:$netid:$MSG:status=1"
+
+        # echo the error
+        $ECHO "ERROR: $pgm failed ($MSG)"
+    else
+        $LOGGER -i -p $facility.err "FAILURE:$pgm:$netid:$MSG:status=$2"
+
+        # echo the error
+        $ECHO "ERROR: $pgm failed ($MSG with exit code $2)"
+    fi
+
+    # cleanup maildirmake folder or tmp area for certain errors
+    case "$1" in
+        14) $RM -r "$restore_path"
+                 ;;
+        15 | 16) $RM $tmpfile.tar
+                 ;;
+        *) $ECHO "ERROR: some rm failed"
+    esac
+
+    exit 1 
+}
+
+# function to log warning and continue
+SW ()
+{
+    MSG="HELP ME HELP ME"
+    case "$1" in
+        1) MSG='listfiles find permission denied'
+           ;;
+        2) MSG='showsearch find permission denied'
+           ;;
+        *) MSG='UNKNOWN WARNING'
+           ;;
+    esac
+
+    $LOGGER -i -p $facility.warn "WARNING:$pgm:$netid:$MSG:status=1"
+}
+
+# who am i?
+netid=`$ID -un`
+[ -z "$netid" ] && SE 1
+
+# show all snapshot dates data is available from
+# algorithm may not find restorable data deleted ????
+# TODO: Add error code for this section
+if [ "$showalldates" -eq "1" ]
+then
+    # e.g., path looks like /rci/u*
+
+    # determine the cluster from path to search
+    cluster=`$ECHO $path|$CUT -d/ -f2`
+
+    # search for where *some* restorable data is (and add an extra search path for eden)
+    if [ "$cluster" == "eden" ]
+    then
+      pathresults=`$LS -d $path/.snapshot/nightly.0/$netid $path/.snapshot/weekly.{1,4,7}/$netid /eden/guest/.snapshot/nightly.0/$netid /eden/guest/.snapshot/weekly.{1,4,7}/$netid 2>/dev/null | $CUT -d/ -f3 | $UNIQ`
+    else
+      pathresults=`$LS -d $path/.snapshot/nightly.0/$netid $path/.snapshot/weekly.{1,4,7}/$netid 2>/dev/null | $CUT -d/ -f3 | $UNIQ`
+    fi
+
+    # e.g., u20
+    #echo $pathresults
+
+    # now search for *all* restorable data
+    for i in $pathresults
+    do
+      pathresults2="$pathresults2 `$LS -d /$cluster/$i/.snapshot/nightly.{0,1,2,3,4,5}/$netid /$cluster/$i/.snapshot/weekly.{0,1,2,3,4,5,6,7}/$netid 2>/dev/null`"
+    done
+
+    # e.g., /eden/u20/.snapshot/nightly.0/brylon /eden/u20/.snapshot/nightly.1/brylon
+    #echo $pathresults2
+
+    # list restorable data directories and show access times
+    TMP=/tmp/$pgm.$$
+    for j in $pathresults2
+    do
+      # test directory is NOT empty
+      if [ "$(echo $j/* $j/.*)" != "$j/* $j/.  $j/.." ]
+      then
+        # write not-empty restorable data directories to /tmp for sorting later
+        $LS -uld --time-style='+%m %d %Y %H:%M' $j >> $TMP
+      fi
+    done
+
+    # sort by access time (newest to oldest)
+    if [ -f $TMP -a -s $TMP ]
+    then
+      # sort year first, then month, then day
+      $SORT -k 8nr -k 6nr -k 7nr $TMP
+
+      # remove tmp file
+      $RM -f $TMP
+    fi
+elif [ "$listfiles" -eq "1" ]
+then
+    # path looks like /rci/u4/.snapshot/nightly.1/brylon 
+    if [ "$pgm" == "restoremail" ]
+    then
+        $FIND $path -maxdepth 1 -type d -name Maildir -exec /bin/bash -c "[ -r '{}' -a -d '{}' ] && $STAT -c 'd!%y!%n/.!(type=INBOX folder)' '{}'; [ -r '{}' -a ! -d '{}' ] && $STAT -c 'o!%y!%n!(size=%s)' '{}'" 2>/dev/null \; || SW 1
+        $FIND $path -maxdepth 1 -type d -name .\* -exec /bin/bash -c "[ -r '{}' -a -d '{}' ] && $STAT -c 'd!%y!%n!(type=folder)' '{}'; [ -r '{}' -a ! -d '{}' ] && $STAT -c 'o!%y!%n!(size=%s)' '{}'" 2>/dev/null \; || SW 1
+    else
+        $FIND $path -name Maildir -prune -o -name mysql -prune -o -exec /bin/bash -c "[ -r '{}' -a -d '{}' ] && $STAT -c 'd!%y!%n/' '{}'; [ -r '{}' -a ! -d '{}' ] && $STAT -c 'o!%y!%n!(size=%s)' '{}'" 2>/dev/null \; || SW 1
+    fi
+elif [ "$showsearch" -eq "1" ]
+then
+    if [ "$pgm" == "restoremail" ]
+    then
+        if [ "$keyword" == "inbox" ]
+        then
+            $FIND $path -maxdepth 0 -exec /bin/bash -c "[ -r '{}' -a -d '{}' ] && $STAT -c 'd!%y!%n!(type=INBOX folder)' '{}'; [ -r '{}' -a ! -d '{}' ] && $STAT -c 'o!$y!%n!(size=%s)' '{}'" 2>/dev/null \; || SW 2
+        else
+            $FIND $path -maxdepth 1 -iname "*.*$keyword*" -exec /bin/bash -c "[ -r '{}' -a -d '{}' ] && $STAT -c 'd!%y!%n!(type=folder)' '{}'; [ -r '{}' -a ! -d '{}' ] && $STAT -c 'o!$y!%n!(size=%s)' '{}'" 2>/dev/null \; || SW 2
+        fi
+    else
+        $FIND $path -name Maildir -prune -o -name mysql -prune -o -iname "*$keyword*" -exec /bin/bash -c "[ -r '{}' -a -d '{}' ] && $STAT -c 'd!%y!%n/' '{}'; [ -r '{}' -a ! -d '{}' ] && $STAT -c 'o!%y!%n!(size=%s)' '{}'" 2>/dev/null \; || SW 2
+    fi
+fi
+
+# exit out of the script quickly if we are NOT actually restoring data yet
+[ "$exitquick" -eq "1" ] && exit 0
+
+# get home directory
+home=`$GETENT passwd $netid | $CUT -d: -f6`
+[ ! -d "$home" ] && SE 4
+
+# init vars
+tmpfile="/tmp/$pgm.$$"
+snapshot_path="$path"
+snapshot_dir=`$DIRNAME "$snapshot_path"`
+snapshot_src=`$BASENAME "$snapshot_path"`
+
+# were we called as restoremail OR restore?
+if [ $pgm == 'restoremail' ]
+then
+    if [ "$snapshot_src" == '.' ]
+    then
+        restore_folder="RESTORE"
+        restore_path="$home/Maildir/.RESTORE"
+    else
+        restore_folder="RESTORE$snapshot_src"
+        restore_path="$home/Maildir/.RESTORE$snapshot_src"
+    fi
+else
+    restore_path="$home/RESTORE"
+fi
+
+# if ~/RESTORE exists as a file then abort
+[ -f "$restore_path" ] && SE 5
+
+# lookup user quota
+qline=`$RUQUOTA -s 2>/dev/null`
+[ "$?" -ne 0 ] && SE 6 $?
+
+# does the user have the space to restore?
+# get current usage and limit
+usage=`$ECHO $qline | $AWK '{print $1}'`
+[ -z "$usage" ] && SE 7
+limit=`$ECHO $qline | $AWK '{print $2}'`
+[ -z "$limit" ] && SE 8
+
+# is the user already overquota?
+[ "$usage" -ge "$limit" ] && SE 9
+
+# add current usage AND snapshot to be restored usage (AND Maildir default size if restoremail)
+if [ $pgm == 'restoremail' ]
+then
+    # get snapshot usage
+    src_usage=`$DU --total --block-size=1024K --dereference "$snapshot_path/"{cur,new,tmp} | $TAIL --lines=1 | $AWK '{print $1}'`
+    [ "$?" -ne 0 ] && SE 10 $?
+
+    total_usage=`$EXPR $usage + $src_usage + 8`
+else
+    # get snapshot usage
+    src_usage=`$DU --summarize --block-size=1024K --dereference "$snapshot_path" | $AWK '{print $1}'`
+    [ "$?" -ne 0 ] && SE 10 $?
+
+    total_usage=`$EXPR $usage + $src_usage`
+fi
+
+# if total usage > limit error then abort
+[ "$total_usage" -gt "$limit" ] && SE 11
+
+# create the RESTORE directory IFF it does not exist already
+if [ ! -d "$restore_path" ]
+then
+    if [ $pgm == 'restoremail' ]
+    then
+        $MAILDIRMAKE -f "$restore_folder" $home/Maildir
+        [ "$?" -ne 0 ] && SE 12 $?
+    else
+        $MKDIR "$restore_path"
+        [ "$?" -ne 0 ] && SE 13 $?
+    fi
+fi
+
+# if we've made it this far they have the space, so let's do it...
+# tar data from snapshot file OR directory
+if [ $pgm == 'restoremail' ]
+then
+    for i in cur new tmp
+    do
+        $FIND "$snapshot_path/$i" -type f -exec $CP {} "$restore_path/$i" 2>/dev/null \;
+        retval=$?
+        [ "$retval" -ne 0 ] && SE 14 $retval
+    done
+else
+    # added --ignore-failed-read since a directory w/ x files/dirs should not fail b/c x-y did
+    cd "$snapshot_dir"
+    $TAR --create --dereference --ignore-failed-read --file $tmpfile.tar "$snapshot_src" &>/dev/null
+    [ "$?" -ne 0 ] && SE 15 $?
+
+    # untar data to RESTORE directory
+    cd "$restore_path"
+    $TAR --extract --file $tmpfile.tar &>/dev/null
+    [ "$?" -ne 0 ] && SE 16 $?
+
+    $RM $tmpfile.tar
+fi
+
+$ECHO "OK:$pgm successful:${src_usage} MB restored"
+$LOGGER -i -p $facility.info "SUCCESS:$pgm:$netid:${src_usage} MB restored:status=0"
+exit 0

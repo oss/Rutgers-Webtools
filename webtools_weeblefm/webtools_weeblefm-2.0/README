@@ -1,0 +1,26 @@
+###########################
+# Setup webtools_weeblefm #
+###########################
+
+$prefix = wherever webtools installed (e.g., /usr/lib64/webtools)
+
+For weeblefm do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp weeblefm_config.php.sample weeblefm_config.php
+   $ vi weeblefm_config.php
+
+1) Copy sample settings configuration file.*
+   $ cd $prefix/html
+   $ cp settings.php.sample settings.php
+   $ vi settings.php
+
+2) Copy sample loginform configuration file.*
+   $ cd $prefix/html
+   $ cp loginform.html.sample loginform.html
+   $ vi loginform.html
+
+3) Done.
+
+*Note: When configuring ftp_Servers remember to add corresponding servers to loginform.html select options

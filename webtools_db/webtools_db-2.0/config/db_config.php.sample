@@ -1,0 +1,98 @@
+<?php
+/* APP RELATED CONFIG OPTIONS */
+
+global $RUNAS_USER, $DB, $PENDING_DIR, $DEFAULT_PRIV_TYPE, $DB_EMAIL_ADDRESS_FROM, $DB_EMAIL_ADDRESS_TO;
+
+// who should we runas?
+$RUNAS_USER = 'csstools';
+
+// programs runas is allowed to execute
+$DB = 'db';
+
+// location of (executed) user sql files (to be written)
+$PENDING_DIR = '/rci/local/mysql5/admin/pending';
+
+// set default privs
+$DEFAULT_PRIV_TYPE = array(
+'Select',
+'Insert',
+'Update',
+'Delete',
+'Create',
+'Drop',
+'Index',
+'Alter',
+'Lock Tables',
+'Create View',
+'Show View',
+'Create Routine',
+'Alter Routine',
+'Execute',
+'Event',
+'Trigger'
+);
+
+// reset password email From: 
+$DB_EMAIL_ADDRESS_FROM = 'www@rci.rutgers.edu';
+
+// reset password email To:
+$DB_EMAIL_ADDRESS_TO = 'rci-dbs@css-projects.rutgers.edu';
+
+/* WEB RELATED CONFIG OPTIONS */
+
+global $DOCTYPE, $TITLE, $DESCRIPTION, $KEYWORDS, $HEADER, $JS, $REFRESH,
+        $DIV_ID_CONTENT_CLASS, $RSS_SERVICE_ITEM_MAX, $RSS_SERVICE_URL,
+        $LOGIN_BOX_HEADER, $LOGIN_BOX_SUB_HEADER, $LOGIN_BOX_FOOTER,
+        $LOGIN_BOX_ARRAY;
+
+// Define DOCTYPE (e.g., xhtml1-transitional, xhtml1-strict, xhtml11)
+$DOCTYPE = 'xhtml11';
+
+// Title for webpage
+$TITLE = 'RCI Database Maintenance';
+
+// Description to use for META tag
+$DESCRIPTION = 'RCI Database Maintenance';
+
+// Keywords to use for META tag
+$KEYWORDS = 'css,rci db,rci database';
+
+// Header for webpage (Future todo: make this a navigational menu)
+$HEADER = "Welcome to $TITLE, provided by Central Systems and Services";
+
+// Javascript file to source
+$JS = 'my.js';
+
+// Ability to refresh/redirect if desired (note: content="$REFRESH")
+// http://en.wikipedia.org/wiki/Meta_refresh
+// $REFRESH = '15;URL=http://somewhere.rutgers.edu';
+$REFRESH = '';
+
+// Adds class name to <div id='content' class=''> in order to style; add name to style.css
+// Some predefined classes are 'wide' and 'wide-with-news'
+$DIV_ID_CONTENT_CLASS = "wide-with-news";
+
+/* NOTE: The following options ONLY needed when using right_boxes() function */
+// RSS service max number of items shown
+$RSS_SERVICE_ITEM_MAX = 3;
+
+// RSS service feed URL
+$RSS_SERVICE_URL = 'http://css.rutgers.edu/webmail/roundcube/changelog/feed';
+
+// Login box header
+$LOGIN_BOX_HEADER = 'Sign in to SERVICE';
+
+// Login box sub header
+$LOGIN_BOX_SUB_HEADER = 'Powered by <a href="/">some software name</a>';
+
+// Login box footer
+$LOGIN_BOX_FOOTER = 'System Maintenance is every ?';
+
+// Location of file where HTML form is defined
+$LOGIN_BOX_ARRAY['form'] = 'login.html';
+
+// Do you want an RSS feed for this service? either true|false
+$LOGIN_BOX_ARRAY['rss'] = true;
+/* END NOTE */
+
+?>

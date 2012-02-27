@@ -1,0 +1,16 @@
+#!/bin/bash
+
+LOGFILE=/tmp/`basename $0`.$USER.$$.log
+
+USER=`/usr/bin/id -un`
+[ "$USER" == '' ] && exit 41
+
+HOME=`getent passwd $USER | cut -d: -f6`
+if [ "$HOME" == '' ]
+then
+    echo "getent passwd \'$USER\' failed" >> $LOGFILE
+    exit 42
+fi
+
+echo $HOME
+exit 0 

@@ -1,0 +1,41 @@
+######################
+# Setup webtools_smb #
+######################
+
+$prefix = wherever webtools installed (e.g., /usr/local/lib64/webtools)
+
+For smb do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp smb_config.php.sample smb_config.php
+   $ vi smb_config.php
+
+1) Copy sample htaccess file to each webtool(s) directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample smb/.htaccess
+   $ vi smb/.htaccess
+
+2) Done.
+
+##################
+# Setup smbacctd #
+##################
+
+$prefix = wherever smbacctd installed (e.g., /usr/local/smbacctd)
+
+For smbacctd do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix
+   $ cp smbacctd.conf.sample smbacctd.conf
+   $ vi smbacctd.conf
+
+1) Make watch directory and set perms (note: owner must equal $RUNAS_USER).
+   $ mkdir --mode 0750 --parents /var/run/smbacctd/watch
+   $ chown -R $RUNAS_USER /var/run/smbacctd
+
+2) Start smbacctd.
+   $ /etc/init.d/smbacctd start
+
+3) Done.

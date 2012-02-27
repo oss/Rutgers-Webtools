@@ -1,0 +1,31 @@
+Version 2.0
+20111118
+
+Updated all files containing /usr/lib64 to /usr/local/lib64
+
+Version 2.0
+20110919
+
+Fixed bug: lowercase auth'd NetID (ie, REMOTE_USER) in config.php.sample
+
+Version 2.0
+20110809
+
+Updated default webtool quota to actually work:
+ Added quota_config.php.sample file
+ Fixed bug: quota.php.sample uses new php format and is now valid (X)HTML
+ README file reflects new instructions to get quota working
+Fixed bug: Reworked how js file is added in templates/rutgers.php
+Fixed bug: Added end tag for meta refresh to templates/rutgers.php
+
+Version 2.0
+20110526
+
+Add Todo and Changelog files
+New globals SCRIPT_LOG_FACILITY and WEB_LOG_FACILITY
+Updated templates/rutgers.php with per-webtool global REFRESH ability
+
+Version 2.0
+20110512
+
+Initial codebase

@@ -1,0 +1,52 @@
+##################
+# Setup webtools #
+##################
+
+$prefix = wherever webtools installed (e.g., /usr/local/lib64/webtools)
+
+0) Setup links (if not already done at install time)
+   $ ln -s /usr/bin/find  $prefix/webbin/find
+   $ ln -s /usr/bin/quota $prefix/webbin/quota
+   $ ln -s /bin/touch     $prefix/webbin/touch
+
+1) Alter permissions (if not already done at install time)
+   $ chmod 555 /usr/bin/find
+   $ chmod 555 /usr/bin/quota
+   $ chmod 555 /bin/touch
+
+2) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp config.php.sample config.php
+   $ vi config.php
+   NOTE: If enabling quota webtool you must uncomment $WEBTOOL[]='quota';
+
+3) Copy sample htaccess file to each webtool(s) directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample quota/.htaccess
+   $ vi quota/.htaccess
+
+4) Copy sample quota webtool configuration file (if needed). 
+   $ cd $prefix/config
+   $ mv quota_config.php.sample quota_config.php
+   $ vi quota_config.php
+
+5) Move sample quota webtool to make it *live* (if needed).
+   $ cd $prefix/html/quota
+   $ mv quota.php.sample quota.php
+
+6) Configure your web server to include entries similar to the below.
+   Note: Replace $prefix with real absolute directory.
+
+   RedirectMatch ^/webtools$ https://hostname.rutgers.edu/webtools/
+   RedirectMatch ^/webtools/(.*) https://hostname.rutgers.edu/webtools/$1
+
+   <Directory $prefix/html>
+     AllowOverride All
+     Order Allow,Deny
+     Allow from all
+     php_admin_value safe_mode_exec_dir $prefix/bin
+   </Directory>
+
+   Alias /webtools $prefix/html
+
+7) Done.

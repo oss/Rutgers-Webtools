@@ -1,0 +1,19 @@
+##########################
+# Setup webtools_retiree #
+##########################
+
+$prefix = wherever webtools installed (e.g., /usr/local/lib64/webtools)
+
+For retiree do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp retiree_config.php.sample retiree_config.php
+   $ vi retiree_config.php
+
+1) Copy sample htaccess file to each webtool(s) directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample retiree/.htaccess
+   $ vi retiree/.htaccess
+
+2) Done.

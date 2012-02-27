@@ -1,0 +1,191 @@
+#!/bin/bash
+
+# brylon - 20111006: vmail webtool helper script
+
+# clear $PATH
+PATH=''
+
+# get program name
+[ -f "/usr/bin/basename" ] && BASENAME=/usr/bin/basename
+[ -f "/bin/basename" ] && BASENAME=/bin/basename
+pgm=`$BASENAME "$0"`
+
+# assign tmp file
+tmp=/tmp/$pgm.$$
+
+# init cmds used in this script with common paths between OS type
+CAT=/bin/cat
+COMM=/usr/bin/comm
+CUT=/bin/cut
+ECHO=/bin/echo
+EGREP=/bin/egrep
+FIND=/usr/bin/find
+GETENT=/usr/bin/getent
+HEAD=/usr/bin/head
+ID=/usr/bin/id
+LS=/bin/ls
+MV=/bin/mv
+RM=/bin/rm
+TR=/usr/bin/tr
+
+# check existence of binaries (thanks NASOM)
+for i in $CAT $COMM $CUT $ECHO $EGREP $FIND $GETENT $HEAD $ID $LS $MV $RM $TR
+do
+        [ ! -f "$i" ] && echo "ERROR: $pgm failed (missing cmd)" && echo "cmd: $i" && exit 1
+done
+
+# usage stanza
+Usage()
+{
+$CAT << EOF
+Usage: $pgm [-l] [-D vusername] [-d -a address vusername] [-i -a address vusername] [-s -a address vusername]
+
+option:
+   -h           Show this message
+   -l           List VirtualMAIL usernames
+   -D		Delete VirtualMAIL username
+   -d		Delete VirtualMAIL address (used with -a)
+   -i           Insert VirtualMAIL address (used with -a)
+   -s           Search VirtualMAIL address (used with -a)
+   -a address   Perform action using VirtualMAIL address (used with -d or -i)
+EOF
+}
+
+# function to log error and exit (thanks again NASOM ;)
+SE ()
+{
+    MSG="HELP ME HELP ME"
+    case "$1" in
+        1) MSG='netid not found'
+           ;;
+        2) MSG='getent failed'
+           ;;
+        3) MSG='home not found'
+           ;;
+        4) MSG="file not found: $2"
+           ;;
+        5) MSG="address not found: $2"
+           ;;
+        6) MSG="rm address failed: $2"
+           ;;
+        7) MSG="mv tmpfile failed: $2"
+           ;;
+        8) MSG="rm file failed: $2"
+           ;;
+        *) MSG='UNKNOWN ERROR'
+           ;;
+    esac
+
+    # echo the error
+    $ECHO "ERROR: $pgm failed ($MSG)"
+
+    exit 1 
+}
+
+# who am i?
+netid=`$ID -un`
+[ -z "$netid" ] && SE 1
+
+# do getopts and set needed flags
+list=0
+dvusername=0
+daddress=0
+iaddress=0
+saddress=0
+address=
+vusername=
+while getopts "lDdisa:h" opt
+do
+    case $opt in
+        l) list=1;;
+        D) dvusername=1;;
+        d) daddress=1;;
+        i) iaddress=1;;
+        s) saddress=1;;
+        a) address=$OPTARG;;
+        h) Usage
+           exit 0
+           ;;
+        \?) $ECHO "Invalid option: -$OPTARG" >&2
+           Usage
+           exit 1
+           ;;
+        :) $ECHO "Option -$OPTARG requires an argument" >&2
+           Usage
+           exit 1
+           ;;
+    esac
+done
+shift $(($OPTIND -1))
+
+# unless -l option set, we should have exactly 1 arg left
+[ "$list" -ne "1" -a "$#" -ne "1" ] && Usage && exit 1
+
+# -d, -i, and -s require an address arg
+[ "$daddress" -eq "1" -a -z "$address" ] && Usage && exit 1
+[ "$iaddress" -eq "1" -a -z "$address" ] && Usage && exit 1
+[ "$saddress" -eq "1" -a -z "$address" ] && Usage && exit 1
+
+# assign the vusername
+[ -n "$1" ] && vusername=$1
+
+home=`$GETENT passwd $netid | $CUT -d: -f6`
+[ "$home" == '' ] && SE 2
+[ ! -d "$home" ] && SE 3
+
+# are we listing any .qmail-* files the user may have?
+if [ "$list" -eq "1" ] 
+then
+    cd $home
+    $FIND .qmail-* -exec /bin/bash -c "$ECHO -n '{}': && $CAT '{}' | $TR '\n' ':' && $ECHO" \; 2>/dev/null
+    exit $?
+fi
+
+# are we searching for an address in the vmail username file?
+if [ "$saddress" -eq "1" ]
+then
+    vfile="$home/.qmail-$vusername"
+
+    # does address exist?
+    $EGREP -q "^${address}$" "$vfile" || SE 5 "$vfile-$address"
+    exit $?
+fi
+
+# are we inserting an address into the vmail username file?
+if [ "$iaddress" -eq "1" ]
+then
+    vfile="$home/.qmail-$vusername"
+    $ECHO $address >> $vfile
+    exit $?
+fi
+
+# are we deleting an address from vmail username file?
+if [ "$daddress" -eq "1" ]
+then
+    vfile="$home/.qmail-$vusername"
+    [ ! -e "$vfile" ] && SE 4 "$vfile"
+
+    # does address exist?
+    $EGREP -q "^${address}$" "$vfile" || SE 5 "$vfile-$address"
+ 
+    # delete address from file and write to tmp file (note if last address exitcode is 1)
+    $EGREP -v "^${address}$" "$vfile" > "$tmp"
+
+    # verify we deleted the address (comparing comm output to original address deleted)
+    [ "$address" != `$COMM -13 "$tmp" "$vfile" | $HEAD -1` ] && SE 6 "$vfile-$address"
+    
+    # move tmp file to real file
+    $MV "$tmp" "$vfile" || SE 7 "$tmp $vfile"
+    exit $?
+fi
+
+# are we deleting the vmail username file (ie, .qmail-vusername)?
+if [ "$dvusername" -eq "1" ]
+then
+    vfile="$home/.qmail-$vusername"
+    [ ! -e "$vfile" ] && SE 4 "$vfile"
+    $RM "$vfile" || SE 8 "$vfile"
+    exit $?
+fi
+
+exit 0 

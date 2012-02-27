@@ -1,0 +1,74 @@
+#!/bin/sh
+# chkconfig: - 79 21
+# description: Samba Account Management Daemon
+#
+# processname: /usr/local/smbacctd/smbacctd
+# pidfile: /var/run/smbacctd.pid
+
+# source function library
+. /etc/init.d/functions
+
+pidfile="/var/run/smbacctd.pid"
+RETVAL=0
+prog="Samba Account Management Daemon"
+
+start() {
+        echo -n $"Starting $prog: "
+        if [ $UID -ne 0 ]; then
+                RETVAL=1
+                failure
+        else
+                daemon /usr/local/smbacctd/smbacctd
+                RETVAL=$?
+                [ $RETVAL -eq 0 ] && touch /var/lock/subsys/smbacctd
+        [ $RETVAL -eq 0 ] && success || failure
+        fi;
+        echo 
+        return $RETVAL
+}
+
+stop() {
+        echo -n $"Stopping $prog: "
+        if [ $UID -ne 0 ]; then
+                RETVAL=1
+                failure
+        else
+                kill `/bin/cat $pidfile` > /dev/null 2>&1
+                RETVAL=$?
+                [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/smbacctd
+        [ $RETVAL -eq 0 ] && success || failure
+        fi;
+        echo
+        return $RETVAL
+}
+
+restart(){
+    stop
+    sleep 1
+    start
+}
+
+condrestart(){
+    [ -e /var/lock/subsys/smbacctd ] && restart
+    return 0
+}
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    restart
+        ;;
+  condrestart)
+    condrestart
+    ;;
+  *)
+    echo $"Usage: $0 {start|stop|restart|condrestart}"
+    RETVAL=1
+esac
+
+exit $RETVAL

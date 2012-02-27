@@ -1,0 +1,19 @@
+Version 2.0
+20111118
+
+Updated all files containing /usr/lib64 to /usr/local/lib64
+
+Version 2.0
+20110919
+
+Change RUNAS_USER to csstools (was www)
+Change From header to help@rci.rutgers.edu (was accounts@rci.rutgers.edu)
+Removed unnecessary require_once from index.php for
+ MDB2.php
+ PEAR.php
+
+Version 2.0
+20110810
+
+Add Changelog file
+Remove dummy html/my.js file

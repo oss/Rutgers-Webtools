@@ -1,0 +1,19 @@
+##########################
+# Setup webtools_dbaudit #
+##########################
+
+$prefix = wherever webtools installed (e.g., /usr/local/lib64/webtools)
+
+For dbaudit do the following steps:
+
+0) Copy sample configuration file.
+   $ cd $prefix/config
+   $ cp dbaudit_config.php.sample dbaudit_config.php
+   $ vi dbaudit_config.php
+
+1) Copy sample htaccess file to each webtool(s) directory.
+   $ cd $prefix/html
+   $ cp ../config/htaccess.sample dbaudit/.htaccess
+   $ vi dbaudit/.htaccess
+
+2) Done.

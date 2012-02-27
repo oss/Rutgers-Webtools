@@ -1,0 +1,45 @@
+<form name="form_Login" action="check_login.php" method="post">
+<table summary="" border="0">
+<tbody>
+<tr>
+<td class="title">
+<label for="u">Username</label>
+</td>
+<td>
+<input name="ftp_User" size="20" id="u" type="text" />
+</td>
+</tr>
+<tr>
+<td class="title">
+<label for="p">Password</label>
+</td>
+<td>
+<input name="ftp_Pass" size="20" id="p" type="password" />
+</td>
+</tr>
+<tr>
+<td class="title">
+<label for="s">Server</label>
+</td>
+<td>
+<select name="login_server" id="s">
+<option value="somehostname.rutgers.edu">somehostname.rutgers.edu</option>
+</select>
+</td>
+</tr>
+<tr>
+<td colspan="2">
+<div id='showerror'>&nbsp;</div>
+</td>
+</tr>
+<tr>
+<td>
+&nbsp;
+</td>
+<td>
+<input name="Submit" value="Login" type="button" onclick="submitForm(document.getElementById('u').value, document.getElementById('p').value, document.getElementById('s').value)" />
+</td>
+</tr>
+</tbody>
+</table>
+</form>

@@ -1,0 +1,214 @@
+#!/bin/bash
+
+# This program should implement the following instructions.  It is
+# meant to be paired with a web page for a user to invoke on themself.
+
+# Date: Tue, 02 Sep 2003 14:38:03 -0400
+# From: John Wiggins <jwiggins@jla.rutgers.edu>
+# To: root@nbcs.rutgers.edu
+# Subject: Ftp perms, new web tool request
+#
+# I spoke with Chuck; he wants us to start setting the default permissions
+# for ~/public_html to be 022 for public_html and 077 for everything else. 
+# That's what you get for answering your phone, Roy.
+#
+# Also, he would like us to create a permissions web tool where a user 
+# could push a single button that would remove world read and write 
+# permissions from everything but their public_html directory.
+
+# clear $PATH
+PATH=''
+
+# get program name
+[ -f "/usr/bin/basename" ] && BASENAME=/usr/bin/basename
+[ -f "/bin/basename" ] && BASENAME=/bin/basename
+pgm=`$BASENAME "$0"`
+
+# init cmds used in this script with common paths between OS type
+CAT=/bin/cat
+CHMOD=/bin/chmod
+CUT=/bin/cut
+DATE=/bin/date
+ECHO=/bin/echo
+FIND=/usr/bin/find
+GETENT=/usr/bin/getent
+ID=/usr/bin/id
+LS=/bin/ls
+PRINTF=/usr/bin/printf
+
+# check existence of binaries (thanks NASOM)
+for i in $CAT $CHMOD $CUT $DATE $ECHO $FIND $GETENT $ID $LS $PRINTF
+do
+        [ ! -f "$i" ] && echo "ERROR: $pgm failed (missing cmd)" && echo "cmd: $i" && exit 1
+done
+
+# usage stanza
+Usage()
+{
+$CAT << EOF
+Usage: $pgm [-d] [-X] [-u netid]
+
+option:
+   -h           Show this message
+   -d           Debug mode (echo what would be done)
+   -X           Fix Permissions
+   -u netid     User to check, default $netid
+EOF
+}
+
+# function to log error and exit (thanks again NASOM ;)
+SE ()
+{
+    MSG="HELP ME HELP ME"
+    case "$1" in
+        1) MSG='netid not found'
+           ;;
+        2) MSG='getent failed'
+           ;;
+        3) MSG='home not found'
+           ;;
+        4) MSG="find home go-w failed with exit code $2"
+           ;;
+        5) MSG="find home go-r failed with exit code $2"
+           ;;
+        6) MSG="find mysql o-rwx failed with exit code $2"
+           ;;
+        7) MSG="find html_data o-w failed with exit code $2"
+           ;;
+        *) MSG='UNKNOWN ERROR'
+           ;;
+    esac
+
+    exit 1 
+}
+
+# who am i?
+netid=`$ID -un`
+[ -z "$netid" ] && SE 1
+
+# do getopts and set needed flags
+fix=true
+while getopts "dXu:h" opt
+do
+    case $opt in
+        d) deb=$ECHO
+           fix=$ECHO
+           ;;
+        X) fix='';;
+        u) netid=$OPTARG;;
+        h) Usage
+           exit 0
+           ;;
+        \?) $ECHO "Invalid option: -$OPTARG" >&2
+           Usage
+           exit 1
+           ;;
+        :) $ECHO "Option -$OPTARG requires an argument" >&2
+           Usage
+           exit 1
+           ;;
+    esac
+done
+
+home=`$GETENT passwd $netid | $CUT -d: -f6`
+[ "$home" == '' ] && SE 2
+[ ! -d "$home" ] && SE 3
+
+cd $home
+
+log=/dev/stdout
+[ -z "$deb" ] && log=/dev/null
+[ -z "$fix" ] && log="$home/.fixperms.log.`$DATE +'%Y%m%d%H%M%S'`"
+
+CMD="$fix $CHMOD go-w"
+# group or world writable gets removed
+$FIND . \
+    \( \( -name mysql -prune \) \
+       -o \( -name html_data -prune \) \
+    \) \
+    -o ! -type l \
+    \( -perm -020 -o -perm -002 \) \
+    -exec $PRINTF 'remove group,other write: ' >> $log \; \
+    -exec $LS -dl {} >> $log \;
+
+[ "$?" -ne "0" ] && SE 4 $?
+
+$FIND . \
+    \( \( -name mysql -prune \) \
+       -o \( -name html_data -prune \) \
+    \) \
+    -o ! -type l \
+    \( -perm -020 -o -perm -002 \) \
+    -exec $ECHO 'remove group,other write: ' {} \; \
+    -exec $CMD {} \;
+
+[ "$?" -ne "0" ] && SE 4 $?
+
+CMD="$fix $CHMOD go-r"
+# group or world readable gets removed 
+# unless public_html
+$FIND . \
+    \( \( -name public_html -prune \) \
+       -o \( -name html_data -prune \) \
+       -o \( -name mysql -prune \) \
+    \) \
+    -o ! -type l \
+    \( -perm -040 -o -perm -004 \) \
+    -exec $ECHO 'remove group,other read: ' >> $log \; \
+    -exec $LS -ld {} >> $log \;
+
+[ "$?" -ne "0" ] && SE 5 $?
+
+$FIND . \
+    \( \( -name public_html -prune \) \
+       -o \( -name html_data -prune \) \
+       -o \( -name mysql -prune \) \
+    \) \
+    -o ! -type l \
+    \( -perm -040 -o -perm -004 \) \
+    -exec $ECHO 'remove group,other read: ' {} \; \
+    -exec $CMD {} \;
+
+[ "$?" -ne "0" ] && SE 5 $?
+
+if [ -d "./mysql" ]; then
+  CMD="$fix $CHMOD o-rwx"
+  # no world perms in mysql
+  $FIND "./mysql" \
+      ! -type l \
+      \( -perm -001 -o -perm -002 -o -perm -004 \) \
+      -exec $ECHO 'remove other access: ' >> $log \; \
+      -exec $LS -ld {} >> $log \;
+
+  [ "$?" -ne "0" ] && SE 6 $?
+
+  $FIND "./mysql" \
+      ! -type l \
+      \( -perm -001 -o -perm -002 -o -perm -004 \) \
+      -exec $ECHO 'remove other access: ' {} \; \
+      -exec $CMD {} \;
+
+  [ "$?" -ne "0" ] && SE 6 $?
+fi
+
+if [ -d "./html_data" ]; then
+  CMD="$fix $CHMOD o-w"
+  # world writable gets removed in html_data
+  $FIND "./html_data" \
+      ! -type l \
+      -perm -002 \
+      -exec $ECHO 'remove other write was:' >> $log \; \
+      -exec $LS -ld {} >> $log \;
+
+  [ "$?" -ne "0" ] && SE 7 $?
+
+  $FIND "./html_data" \
+      ! -type l \
+      -perm -002 \
+      -exec $ECHO 'remove other write was:' {} \; \
+      -exec $CMD {} \;
+
+  [ "$?" -ne "0" ] && SE 7 $?
+fi
+
+exit 0 
